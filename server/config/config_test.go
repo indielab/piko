@@ -107,6 +107,9 @@ admin:
     cert: /piko/cert.pem
     key: /piko/key.pem
 
+stream:
+  max_window_size: 4194304
+
 cluster:
   node_id: "my-node"
   join:
@@ -215,6 +218,9 @@ grace_period: 2m
 				},
 			},
 		},
+		Stream: StreamConfig{
+			MaxWindowSize: 4 * 1024 * 1024,
+		},
 		Admin: AdminConfig{
 			BindAddr:      "10.15.104.25:8002",
 			AdvertiseAddr: "1.2.3.4:8002",
@@ -287,6 +293,7 @@ func TestConfig_LoadFlags(t *testing.T) {
 		"--upstream.rebalance.threshold", "0.2",
 		"--upstream.rebalance.shed-rate", "0.005",
 		"--upstream.rebalance.min-conns", "100",
+		"--stream.max-window-size", "4194304",
 		"--upstream.auth.hmac-secret-key", "hmac-secret-key",
 		"--upstream.auth.rsa-public-key", "rsa-public-key",
 		"--upstream.auth.ecdsa-public-key", "ecdsa-public-key",
@@ -380,6 +387,9 @@ func TestConfig_LoadFlags(t *testing.T) {
 				Cert: "/piko/cert.pem",
 				Key:  "/piko/key.pem",
 			},
+		},
+		Stream: StreamConfig{
+			MaxWindowSize: 4 * 1024 * 1024,
 		},
 		Admin: AdminConfig{
 			BindAddr:      "10.15.104.25:8002",

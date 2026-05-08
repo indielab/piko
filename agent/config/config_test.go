@@ -92,6 +92,8 @@ connect:
   url: 'http://localhost:8001'
   timeout: 30s
   token: cyz
+stream:
+  max_window_size: 4194304
 server:
   enabled: true
   bind_addr: ':5201'
@@ -142,6 +144,9 @@ log:
 			URL:     "http://localhost:8001",
 			Timeout: 30 * time.Second,
 			Token:   "cyz",
+		},
+		Stream: StreamConfig{
+			MaxWindowSize: 4 * 1024 * 1024,
 		},
 		Server: ServerConfig{
 			Enabled:  true,

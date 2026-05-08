@@ -104,6 +104,44 @@ matter.`,
 	)
 }
 
+const minStreamWindowSize = 256 * 1024
+
+// StreamConfig configures the streams between the Piko server and upstream
+// listeners.
+type StreamConfig struct {
+	// MaxWindowSize is the maximum receive window size in bytes.
+	//
+	// This is used for flow control to limit how much unread data can be
+	// in-flight on a stream. Increasing this value can increase the
+	// throughput from the agent to the server.
+	//
+	// Must be >=256KiB. Defaults to 256KiB.
+	MaxWindowSize uint32 `json:"max_window_size" yaml:"max_window_size"`
+}
+
+func (c *StreamConfig) Validate() error {
+	if c.MaxWindowSize < minStreamWindowSize {
+		return fmt.Errorf("max-window-size must be >= %d", minStreamWindowSize)
+	}
+	return nil
+}
+
+func (c *StreamConfig) RegisterFlags(fs *pflag.FlagSet) {
+	fs.Uint32Var(
+		&c.MaxWindowSize,
+		"stream.max-window-size",
+		c.MaxWindowSize,
+		`
+MaxWindowSize is the maximum receive window size in bytes.
+
+This is used for flow control to limit how much unread data can be
+in-flight on a stream. Increasing this value can increase the throughput
+from the agent to the server.
+
+Must be >=256KiB. Defaults to 256KiB.`,
+	)
+}
+
 // HTTPConfig contains generic configuration for the HTTP servers.
 type HTTPConfig struct {
 	// ReadTimeout is the maximum duration for reading the entire
@@ -509,6 +547,8 @@ type Config struct {
 
 	Upstream UpstreamConfig `json:"upstream" yaml:"upstream"`
 
+	Stream StreamConfig `json:"stream" yaml:"stream"`
+
 	Admin AdminConfig `json:"admin" yaml:"admin"`
 
 	Cluster ClusterConfig `json:"cluster" yaml:"cluster"`
@@ -547,6 +587,9 @@ func Default() *Config {
 				MinConns:  50,
 			},
 		},
+		Stream: StreamConfig{
+			MaxWindowSize: minStreamWindowSize,
+		},
 		Admin: AdminConfig{
 			BindAddr: ":8002",
 		},
@@ -579,6 +622,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("upstream: %w", err)
 	}
 
+	if err := c.Stream.Validate(); err != nil {
+		return fmt.Errorf("stream: %w", err)
+	}
+
 	if err := c.Admin.Validate(); err != nil {
 		return fmt.Errorf("admin: %w", err)
 	}
@@ -600,6 +647,8 @@ func (c *Config) RegisterFlags(fs *pflag.FlagSet) {
 	c.Proxy.RegisterFlags(fs)
 
 	c.Upstream.RegisterFlags(fs)
+
+	c.Stream.RegisterFlags(fs)
 
 	c.Admin.RegisterFlags(fs)
 

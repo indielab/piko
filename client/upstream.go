@@ -15,6 +15,8 @@ import (
 	"github.com/andydunstall/piko/pkg/websocket"
 )
 
+const defaultMaxWindowSize = 256 * 1024
+
 var (
 	ErrClosed = errors.New("closed")
 )
@@ -67,6 +69,15 @@ type Upstream struct {
 	//
 	// Defaults to 15s.
 	MaxReconnectBackoff time.Duration
+
+	// MaxWindowSize is the maximum receive window size in bytes.
+	//
+	// This is used for flow control to limit how much unread data can be
+	// in-flight on a stream. Increasing this value can increase the
+	// throughput from the server to the client.
+	//
+	// Must be >=256KiB. Defaults to 256KiB.
+	MaxWindowSize uint32
 
 	// Logger is an optional logger to log connection state changes.
 	Logger Logger
@@ -133,9 +144,14 @@ func (u *Upstream) connect(ctx context.Context, endpointID string) (*yamux.Sessi
 				zap.String("url", url),
 			)
 
+			maxWindowSize := u.MaxWindowSize
+			if maxWindowSize == 0 {
+				maxWindowSize = defaultMaxWindowSize
+			}
 			muxConfig := yamux.DefaultConfig()
 			muxConfig.Logger = nil
 			muxConfig.LogOutput = &yamuxLogWriter{logger: u.logger()}
+			muxConfig.MaxStreamWindowSize = maxWindowSize
 			sess, err := yamux.Client(conn, muxConfig)
 			if err != nil {
 				// Will not happen.

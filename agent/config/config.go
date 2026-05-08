@@ -248,6 +248,43 @@ func (c *TLSConfig) Load() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
+const minStreamWindowSize = 256 * 1024
+
+// StreamConfig configures the streams between the agent and Piko server.
+type StreamConfig struct {
+	// MaxWindowSize is the maximum receive window size in bytes.
+	//
+	// This is used for flow control to limit how much unread data can be
+	// in-flight on a stream. Increasing this value can increase the
+	// throughput from the server to the agent.
+	//
+	// Must be >=256KiB. Defaults to 256KiB.
+	MaxWindowSize uint32 `json:"max_window_size" yaml:"max_window_size"`
+}
+
+func (c *StreamConfig) Validate() error {
+	if c.MaxWindowSize < minStreamWindowSize {
+		return fmt.Errorf("max-window-size must be >= %d", minStreamWindowSize)
+	}
+	return nil
+}
+
+func (c *StreamConfig) RegisterFlags(fs *pflag.FlagSet) {
+	fs.Uint32Var(
+		&c.MaxWindowSize,
+		"stream.max-window-size",
+		c.MaxWindowSize,
+		`
+MaxWindowSize is the maximum receive window size in bytes.
+
+This is used for flow control to limit how much unread data can be
+in-flight on a stream. Increasing this value can increase the throughput
+from the server to the agent.
+
+Must be >=256KiB. Defaults to 256KiB.`,
+	)
+}
+
 type ConnectConfig struct {
 	// URL is the Piko server URL to connect to.
 	URL string `json:"url" yaml:"url"`
@@ -388,6 +425,8 @@ type Config struct {
 
 	Connect ConnectConfig `json:"connect" yaml:"connect"`
 
+	Stream StreamConfig `json:"stream" yaml:"stream"`
+
 	Server ServerConfig `json:"server" yaml:"server"`
 
 	Log log.Config `json:"log" yaml:"log"`
@@ -403,6 +442,9 @@ func Default() *Config {
 		Connect: ConnectConfig{
 			URL:     "http://localhost:8001",
 			Timeout: time.Second * 30,
+		},
+		Stream: StreamConfig{
+			MaxWindowSize: minStreamWindowSize,
 		},
 		Server: ServerConfig{
 			BindAddr: ":5000",
@@ -430,6 +472,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("connect: %w", err)
 	}
 
+	if err := c.Stream.Validate(); err != nil {
+		return fmt.Errorf("stream: %w", err)
+	}
+
 	if err := c.Server.Validate(); err != nil {
 		return fmt.Errorf("server: %w", err)
 	}
@@ -447,6 +493,7 @@ func (c *Config) Validate() error {
 
 func (c *Config) RegisterFlags(fs *pflag.FlagSet) {
 	c.Connect.RegisterFlags(fs)
+	c.Stream.RegisterFlags(fs)
 	c.Server.RegisterFlags(fs)
 	c.Log.RegisterFlags(fs)
 
